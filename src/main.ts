@@ -48,6 +48,15 @@ let points = 0;
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No points yet...";
 
+
+for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
+    for (let j = - NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
+        if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
+            makePit(i, j);
+        }
+    }
+}
+
 function makePit(i: number, j: number) {
     const bounds = leaflet.latLngBounds([
         [MERRILL_CLASSROOM.lat + i * TILE_DEGREES,
@@ -65,23 +74,28 @@ function makePit(i: number, j: number) {
         const container = document.createElement("div");
         container.innerHTML = `
                 <div>There is a pit here at "${i},${j}". It has value <span id="value">${value}</span>.</div>
-                <button id="poke">poke</button>`;
+                <button id="poke">poke</button><button id="deposit">deposit</button>`;
         const poke = container.querySelector<HTMLButtonElement>("#poke")!;
         poke.addEventListener("click", () => {
             value--;
             container.querySelector<HTMLSpanElement>("#value")!.innerHTML = value.toString();
             points++;
             statusPanel.innerHTML = `${points} points accumulated`;
+            if (value <= 0) {
+                pit.removeFrom(map);
+            }
+        });
+        const deposit = container.querySelector<HTMLButtonElement>("#deposit")!;
+        deposit.addEventListener("click", () => {
+            if (points <= 0) {
+                return;
+            }
+            value++;
+            container.querySelector<HTMLSpanElement>("#value")!.innerHTML = value.toString();
+            points--;
+            statusPanel.innerHTML = `${points} points accumulated`;
         });
         return container;
     });
     pit.addTo(map);
-}
-
-for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
-    for (let j = - NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
-        if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
-            makePit(i, j);
-        }
-    }
 }
