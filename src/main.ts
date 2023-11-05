@@ -32,7 +32,7 @@ leaflet.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(map);
 
 const playerMarker = leaflet.marker(MERRILL_CLASSROOM);
-playerMarker.bindTooltip("That's you!");
+playerMarker.bindTooltip("It's you!");
 playerMarker.addTo(map);
 
 const sensorButton = document.querySelector("#sensor")!;
