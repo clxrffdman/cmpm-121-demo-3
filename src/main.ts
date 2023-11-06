@@ -134,7 +134,3 @@ function printCoinArray(coinArray: Coin[]) {
     .join(", ");
   return concatenatedCoins;
 }
-
-function makePitFromMemento(memento: string) {}
-
-function unloadPit() {}
