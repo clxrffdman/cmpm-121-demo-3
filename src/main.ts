@@ -3,33 +3,40 @@ import "./style.css";
 import leaflet from "leaflet";
 import luck from "./luck";
 import "./leafletWorkaround";
-
+import { Board, Cell } from "./board";
+import { Geocache, Coin } from "./cache";
 
 const MERRILL_CLASSROOM = leaflet.latLng({
-    lat: 36.9995,
-    lng: - 122.0533
+  lat: 36.9995,
+  lng: -122.0533,
 });
 
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
 const NEIGHBORHOOD_SIZE = 8;
 const PIT_SPAWN_PROBABILITY = 0.1;
+const board: Board = new Board(TILE_DEGREES, NEIGHBORHOOD_SIZE);
+const caches = new Map<Cell, string>();
+let collectedCoins: Coin[] = [];
 
 const mapContainer = document.querySelector<HTMLElement>("#map")!;
 
 const map = leaflet.map(mapContainer, {
-    center: MERRILL_CLASSROOM,
-    zoom: GAMEPLAY_ZOOM_LEVEL,
-    minZoom: GAMEPLAY_ZOOM_LEVEL,
-    maxZoom: GAMEPLAY_ZOOM_LEVEL,
-    zoomControl: false,
-    scrollWheelZoom: false
+  center: MERRILL_CLASSROOM,
+  zoom: GAMEPLAY_ZOOM_LEVEL,
+  minZoom: GAMEPLAY_ZOOM_LEVEL,
+  maxZoom: GAMEPLAY_ZOOM_LEVEL,
+  zoomControl: false,
+  scrollWheelZoom: false,
 });
 
-leaflet.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+leaflet
+  .tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
-    attribution: "&copy; <a href=\"http://www.openstreetmap.org/copyright\">OpenStreetMap</a>"
-}).addTo(map);
+    attribution:
+      '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  })
+  .addTo(map);
 
 const playerMarker = leaflet.marker(MERRILL_CLASSROOM);
 playerMarker.bindTooltip("It's you!");
@@ -37,65 +44,97 @@ playerMarker.addTo(map);
 
 const sensorButton = document.querySelector("#sensor")!;
 sensorButton.addEventListener("click", () => {
-    navigator.geolocation.watchPosition((position) => {
-        playerMarker.setLatLng(leaflet.latLng(position.coords.latitude, position.coords.longitude));
-        map.setView(playerMarker.getLatLng());
-    });
+  navigator.geolocation.watchPosition((position) => {
+    playerMarker.setLatLng(
+      leaflet.latLng(position.coords.latitude, position.coords.longitude)
+    );
+    map.setView(playerMarker.getLatLng());
+  });
 });
-    
 
 let points = 0;
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No points yet...";
 
+generatePitsInRange();
 
-for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
-    for (let j = - NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
-        if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
-            makePit(i, j);
-        }
+function generatePitsInRange() {
+  const nearbyCells = board.getCellsNearPoint(playerMarker.getLatLng());
+
+  nearbyCells.forEach((element) => {
+    const { i, j } = element;
+
+    if (luck([i, j].toString()) < PIT_SPAWN_PROBABILITY) {
+      makePit(i, j);
     }
+  });
 }
 
 function makePit(i: number, j: number) {
-    const bounds = leaflet.latLngBounds([
-        [MERRILL_CLASSROOM.lat + i * TILE_DEGREES,
-        MERRILL_CLASSROOM.lng + j * TILE_DEGREES],
-        [MERRILL_CLASSROOM.lat + (i + 1) * TILE_DEGREES,
-        MERRILL_CLASSROOM.lng + (j + 1) * TILE_DEGREES],
-    ]);
+  const element: Cell = { i: i, j: j };
+  const bounds = board.getCellBounds(element);
+  const pit = leaflet.rectangle(bounds) as leaflet.Layer;
 
-    const pit = leaflet.rectangle(bounds) as leaflet.Layer;
+  pit.bindPopup(() => {
+    let cache: Geocache;
+    if (caches.has(element)) {
+      cache = new Geocache(i, j, caches.get(element));
+    } else {
+      cache = new Geocache(i, j);
+      caches.set(element, cache.toMomento());
+    }
 
-
-
-    pit.bindPopup(() => {
-        let value = Math.floor(luck([i, j, "initialValue"].toString()) * 100);
-        const container = document.createElement("div");
-        container.innerHTML = `
-                <div>There is a pit here at "${i},${j}". It has value <span id="value">${value}</span>.</div>
+    let cacheCoins = cache.coins;
+    const container = document.createElement("div");
+    container.innerHTML = `
+                <div>There is a pit here at "${i},${j}". It has value <span id="coins">${printCoinArray(
+      cacheCoins
+    )}</span>.</div>
                 <button id="poke">poke</button><button id="deposit">deposit</button>`;
-        const poke = container.querySelector<HTMLButtonElement>("#poke")!;
-        poke.addEventListener("click", () => {
-            value--;
-            container.querySelector<HTMLSpanElement>("#value")!.innerHTML = value.toString();
-            points++;
-            statusPanel.innerHTML = `${points} points accumulated`;
-            if (value <= 0) {
-                pit.removeFrom(map);
-            }
-        });
-        const deposit = container.querySelector<HTMLButtonElement>("#deposit")!;
-        deposit.addEventListener("click", () => {
-            if (points <= 0) {
-                return;
-            }
-            value++;
-            container.querySelector<HTMLSpanElement>("#value")!.innerHTML = value.toString();
-            points--;
-            statusPanel.innerHTML = `${points} points accumulated`;
-        });
-        return container;
+    const poke = container.querySelector<HTMLButtonElement>("#poke")!;
+    poke.addEventListener("click", () => {
+      let rv: Coin | boolean = cache.removeCoin()!;
+      console.log(rv);
+      if (!rv || rv == undefined) {
+        return;
+      }
+      collectedCoins.push(rv);
+      cacheCoins = cache.coins;
+      container.querySelector<HTMLSpanElement>("#coins")!.innerHTML =
+        printCoinArray(cacheCoins);
+      points++;
+      statusPanel.innerHTML = `${points} points accumulated`;
+      caches.set(element, cache.toMomento());
     });
-    pit.addTo(map);
+    const deposit = container.querySelector<HTMLButtonElement>("#deposit")!;
+    deposit.addEventListener("click", () => {
+      if (collectedCoins.length <= 0) {
+        return;
+      }
+      cache.addCoin(collectedCoins.pop()!);
+      cacheCoins = cache.coins;
+      container.querySelector<HTMLSpanElement>("#coins")!.innerHTML =
+        printCoinArray(cacheCoins);
+      points--;
+      statusPanel.innerHTML = `${points} points accumulated`;
+      caches.set(element, cache.toMomento());
+    });
+    return container;
+  });
+  pit.addTo(map);
 }
+
+function coinToString(coin: Coin) {
+  return `${coin.i}:${coin.j}#${coin.serial}`;
+}
+
+function printCoinArray(coinArray: Coin[]) {
+  const concatenatedCoins = coinArray
+    .map((coin) => coinToString(coin))
+    .join(", ");
+  return concatenatedCoins;
+}
+
+function makePitFromMemento(memento: string) {}
+
+function unloadPit() {}
