@@ -18,9 +18,12 @@ const NEIGHBORHOOD_SIZE = 8;
 const PIT_SPAWN_PROBABILITY = 0.1;
 const board: Board = new Board(TILE_DEGREES, NEIGHBORHOOD_SIZE);
 const caches = new Map<string, string>();
+
 let currentPits: leaflet.Layer[] = [];
 let collectedCoins: Coin[] = [];
 let playerLocation: leaflet.LatLng;
+let trackingLocation = false;
+let trackingInterval: number = 0;
 
 const mapContainer = document.querySelector<HTMLElement>("#map")!;
 
@@ -49,34 +52,34 @@ playerLocation = MERRILL_CLASSROOM;
 //Sensor Button
 const sensorButton = document.querySelector("#sensor")!;
 sensorButton.addEventListener("click", () => {
-  navigator.geolocation.watchPosition((position) => {
-    playerLocation = leaflet.latLng(
-      position.coords.latitude,
-      position.coords.longitude
-    );
-    updatePlayerLocation();
-  });
+  trackingLocation = !trackingLocation;
+  if (trackingLocation) {
+    movePlayerToGeolocation();
+    trackingInterval = setInterval(movePlayerToGeolocation, 5000);
+  } else {
+    clearInterval(trackingInterval);
+  }
 });
 
 //Navigation Buttons
 const northButton = document.querySelector("#north")!;
 northButton.addEventListener("click", () => {
-    movePlayer(MOVE_INCREMENT, 0);
+  movePlayer(MOVE_INCREMENT, 0);
 });
 
 const southButton = document.querySelector("#south")!;
 southButton.addEventListener("click", () => {
-    movePlayer(-MOVE_INCREMENT, 0);
+  movePlayer(-MOVE_INCREMENT, 0);
 });
 
 const eastButton = document.querySelector("#east")!;
 eastButton.addEventListener("click", () => {
-    movePlayer(0, MOVE_INCREMENT);
+  movePlayer(0, MOVE_INCREMENT);
 });
 
 const westButton = document.querySelector("#west")!;
 westButton.addEventListener("click", () => {
-    movePlayer(0, -MOVE_INCREMENT);
+  movePlayer(0, -MOVE_INCREMENT);
 });
 
 let points = 0;
@@ -99,12 +102,11 @@ function generatePitsInRange() {
       makePit(i, j);
     }
   });
-    
 }
 
 function makePit(i: number, j: number) {
-    const element: Cell = { i: i, j: j };
-    const key = generateCellKey(element);
+  const element: Cell = { i: i, j: j };
+  const key = generateCellKey(element);
   const bounds = board.getCellBounds(element);
   const pit = leaflet.rectangle(bounds) as leaflet.Layer;
 
@@ -113,8 +115,8 @@ function makePit(i: number, j: number) {
   pit.bindPopup(() => {
     let cache: Geocache;
     if (caches.has(key)) {
-        cache = new Geocache(i, j, caches.get(key));
-        caches.set(key, cache.toMomento());
+      cache = new Geocache(i, j, caches.get(key));
+      caches.set(key, cache.toMomento());
     } else {
       cache = new Geocache(i, j);
       caches.set(key, cache.toMomento());
@@ -140,7 +142,7 @@ function makePit(i: number, j: number) {
         printCoinArray(cacheCoins);
       points++;
       statusPanel.innerHTML = `${points} points accumulated`;
-        caches.set(key, cache.toMomento());
+      caches.set(key, cache.toMomento());
     });
     const deposit = container.querySelector<HTMLButtonElement>("#deposit")!;
     deposit.addEventListener("click", () => {
@@ -153,7 +155,7 @@ function makePit(i: number, j: number) {
         printCoinArray(cacheCoins);
       points--;
       statusPanel.innerHTML = `${points} points accumulated`;
-        caches.set(key, cache.toMomento());
+      caches.set(key, cache.toMomento());
     });
     return container;
   });
@@ -171,13 +173,22 @@ function printCoinArray(coinArray: Coin[]) {
   return concatenatedCoins;
 }
 
-function movePlayer(lat: number, long: number) {
+function movePlayerToGeolocation() {
+  navigator.geolocation.watchPosition((position) => {
     playerLocation = leaflet.latLng(
-        playerLocation.lat + lat,
-        playerLocation.lng + long
-      );
-      updatePlayerLocation();
+      position.coords.latitude,
+      position.coords.longitude
+    );
+    updatePlayerLocation();
+  });
+}
 
+function movePlayer(lat: number, long: number) {
+  playerLocation = leaflet.latLng(
+    playerLocation.lat + lat,
+    playerLocation.lng + long
+  );
+  updatePlayerLocation();
 }
 
 function updatePlayerLocation() {
@@ -187,5 +198,5 @@ function updatePlayerLocation() {
 }
 
 function generateCellKey(cell: Cell): string {
-    return `${cell.i}_${cell.j}`;
+  return `${cell.i}_${cell.j}`;
 }
