@@ -61,38 +61,22 @@ sensorButton.addEventListener("click", () => {
 //Navigation Buttons
 const northButton = document.querySelector("#north")!;
 northButton.addEventListener("click", () => {
-  playerLocation = leaflet.latLng(
-    playerLocation.lat + MOVE_INCREMENT,
-    playerLocation.lng
-  );
-  updatePlayerLocation();
+    movePlayer(MOVE_INCREMENT, 0);
 });
 
 const southButton = document.querySelector("#south")!;
 southButton.addEventListener("click", () => {
-  playerLocation = leaflet.latLng(
-    playerLocation.lat - MOVE_INCREMENT,
-    playerLocation.lng
-  );
-  updatePlayerLocation();
+    movePlayer(-MOVE_INCREMENT, 0);
 });
 
 const eastButton = document.querySelector("#east")!;
 eastButton.addEventListener("click", () => {
-  playerLocation = leaflet.latLng(
-    playerLocation.lat,
-    playerLocation.lng + MOVE_INCREMENT
-  );
-  updatePlayerLocation();
+    movePlayer(0, MOVE_INCREMENT);
 });
 
 const westButton = document.querySelector("#west")!;
 westButton.addEventListener("click", () => {
-  playerLocation = leaflet.latLng(
-    playerLocation.lat,
-    playerLocation.lng - MOVE_INCREMENT
-  );
-  updatePlayerLocation();
+    movePlayer(0, -MOVE_INCREMENT);
 });
 
 let points = 0;
@@ -187,7 +171,14 @@ function printCoinArray(coinArray: Coin[]) {
   return concatenatedCoins;
 }
 
-function movePlayer() {}
+function movePlayer(lat: number, long: number) {
+    playerLocation = leaflet.latLng(
+        playerLocation.lat + lat,
+        playerLocation.lng + long
+      );
+      updatePlayerLocation();
+
+}
 
 function updatePlayerLocation() {
   playerMarker.setLatLng(playerLocation);
