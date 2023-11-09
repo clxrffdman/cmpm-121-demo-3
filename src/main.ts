@@ -92,7 +92,7 @@ resetButton.addEventListener("click", () => {
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No points yet...";
 
-addEventListener("beforeunload", (event) => {
+addEventListener("beforeunload", () => {
   saveDataOnLocal();
 });
 
