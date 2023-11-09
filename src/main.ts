@@ -13,11 +13,14 @@ const MERRILL_CLASSROOM = leaflet.latLng({
 
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
+const MOVE_INCREMENT = 1e-4;
 const NEIGHBORHOOD_SIZE = 8;
 const PIT_SPAWN_PROBABILITY = 0.1;
 const board: Board = new Board(TILE_DEGREES, NEIGHBORHOOD_SIZE);
-const caches = new Map<Cell, string>();
+const caches = new Map<string, string>();
+let currentPits: leaflet.Layer[] = [];
 let collectedCoins: Coin[] = [];
+let playerLocation: leaflet.LatLng;
 
 const mapContainer = document.querySelector<HTMLElement>("#map")!;
 
@@ -41,15 +44,55 @@ leaflet
 const playerMarker = leaflet.marker(MERRILL_CLASSROOM);
 playerMarker.bindTooltip("It's you!");
 playerMarker.addTo(map);
+playerLocation = MERRILL_CLASSROOM;
 
+//Sensor Button
 const sensorButton = document.querySelector("#sensor")!;
 sensorButton.addEventListener("click", () => {
   navigator.geolocation.watchPosition((position) => {
-    playerMarker.setLatLng(
-      leaflet.latLng(position.coords.latitude, position.coords.longitude)
+    playerLocation = leaflet.latLng(
+      position.coords.latitude,
+      position.coords.longitude
     );
-    map.setView(playerMarker.getLatLng());
+    updatePlayerLocation();
   });
+});
+
+//Navigation Buttons
+const northButton = document.querySelector("#north")!;
+northButton.addEventListener("click", () => {
+  playerLocation = leaflet.latLng(
+    playerLocation.lat + MOVE_INCREMENT,
+    playerLocation.lng
+  );
+  updatePlayerLocation();
+});
+
+const southButton = document.querySelector("#south")!;
+southButton.addEventListener("click", () => {
+  playerLocation = leaflet.latLng(
+    playerLocation.lat - MOVE_INCREMENT,
+    playerLocation.lng
+  );
+  updatePlayerLocation();
+});
+
+const eastButton = document.querySelector("#east")!;
+eastButton.addEventListener("click", () => {
+  playerLocation = leaflet.latLng(
+    playerLocation.lat,
+    playerLocation.lng + MOVE_INCREMENT
+  );
+  updatePlayerLocation();
+});
+
+const westButton = document.querySelector("#west")!;
+westButton.addEventListener("click", () => {
+  playerLocation = leaflet.latLng(
+    playerLocation.lat,
+    playerLocation.lng - MOVE_INCREMENT
+  );
+  updatePlayerLocation();
 });
 
 let points = 0;
@@ -61,6 +104,10 @@ generatePitsInRange();
 function generatePitsInRange() {
   const nearbyCells = board.getCellsNearPoint(playerMarker.getLatLng());
 
+  currentPits.forEach((element) => {
+    element.removeFrom(map);
+  });
+
   nearbyCells.forEach((element) => {
     const { i, j } = element;
 
@@ -68,20 +115,25 @@ function generatePitsInRange() {
       makePit(i, j);
     }
   });
+    
 }
 
 function makePit(i: number, j: number) {
-  const element: Cell = { i: i, j: j };
+    const element: Cell = { i: i, j: j };
+    const key = generateCellKey(element);
   const bounds = board.getCellBounds(element);
   const pit = leaflet.rectangle(bounds) as leaflet.Layer;
 
+  currentPits.push(pit);
+
   pit.bindPopup(() => {
     let cache: Geocache;
-    if (caches.has(element)) {
-      cache = new Geocache(i, j, caches.get(element));
+    if (caches.has(key)) {
+        cache = new Geocache(i, j, caches.get(key));
+        caches.set(key, cache.toMomento());
     } else {
       cache = new Geocache(i, j);
-      caches.set(element, cache.toMomento());
+      caches.set(key, cache.toMomento());
     }
 
     let cacheCoins = cache.coins;
@@ -104,7 +156,7 @@ function makePit(i: number, j: number) {
         printCoinArray(cacheCoins);
       points++;
       statusPanel.innerHTML = `${points} points accumulated`;
-      caches.set(element, cache.toMomento());
+        caches.set(key, cache.toMomento());
     });
     const deposit = container.querySelector<HTMLButtonElement>("#deposit")!;
     deposit.addEventListener("click", () => {
@@ -117,7 +169,7 @@ function makePit(i: number, j: number) {
         printCoinArray(cacheCoins);
       points--;
       statusPanel.innerHTML = `${points} points accumulated`;
-      caches.set(element, cache.toMomento());
+        caches.set(key, cache.toMomento());
     });
     return container;
   });
@@ -133,4 +185,16 @@ function printCoinArray(coinArray: Coin[]) {
     .map((coin) => coinToString(coin))
     .join(", ");
   return concatenatedCoins;
+}
+
+function movePlayer() {}
+
+function updatePlayerLocation() {
+  playerMarker.setLatLng(playerLocation);
+  map.setView(playerMarker.getLatLng());
+  generatePitsInRange();
+}
+
+function generateCellKey(cell: Cell): string {
+    return `${cell.i}_${cell.j}`;
 }
