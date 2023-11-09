@@ -17,13 +17,14 @@ const MOVE_INCREMENT = 1e-4;
 const NEIGHBORHOOD_SIZE = 8;
 const PIT_SPAWN_PROBABILITY = 0.1;
 const board: Board = new Board(TILE_DEGREES, NEIGHBORHOOD_SIZE);
-const caches = new Map<string, string>();
 
+let caches = new Map<string, string>();
 let currentPits: leaflet.Layer[] = [];
 let collectedCoins: Coin[] = [];
 let playerLocation: leaflet.LatLng;
 let trackingLocation = false;
-let trackingInterval: number = 0;
+let trackingInterval: number | null = 0;
+let points = 0;
 
 const mapContainer = document.querySelector<HTMLElement>("#map")!;
 
@@ -56,8 +57,9 @@ sensorButton.addEventListener("click", () => {
   if (trackingLocation) {
     movePlayerToGeolocation();
     trackingInterval = setInterval(movePlayerToGeolocation, 5000);
-  } else {
+  } else if (trackingInterval) {
     clearInterval(trackingInterval);
+    trackingInterval = null;
   }
 });
 
@@ -82,10 +84,19 @@ westButton.addEventListener("click", () => {
   movePlayer(0, -MOVE_INCREMENT);
 });
 
-let points = 0;
+const resetButton = document.querySelector("#reset")!;
+resetButton.addEventListener("click", () => {
+  wipeDataFromLocal();
+});
+
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No points yet...";
 
+addEventListener("beforeunload", (event) => {
+  saveDataOnLocal();
+});
+
+loadDataFromLocal();
 generatePitsInRange();
 
 function generatePitsInRange() {
@@ -141,7 +152,7 @@ function makePit(i: number, j: number) {
       container.querySelector<HTMLSpanElement>("#coins")!.innerHTML =
         printCoinArray(cacheCoins);
       points++;
-      statusPanel.innerHTML = `${points} points accumulated`;
+      updateInventoryUI();
       caches.set(key, cache.toMomento());
     });
     const deposit = container.querySelector<HTMLButtonElement>("#deposit")!;
@@ -154,7 +165,7 @@ function makePit(i: number, j: number) {
       container.querySelector<HTMLSpanElement>("#coins")!.innerHTML =
         printCoinArray(cacheCoins);
       points--;
-      statusPanel.innerHTML = `${points} points accumulated`;
+      updateInventoryUI();
       caches.set(key, cache.toMomento());
     });
     return container;
@@ -173,6 +184,7 @@ function printCoinArray(coinArray: Coin[]) {
   return concatenatedCoins;
 }
 
+//Player Movement
 function movePlayerToGeolocation() {
   navigator.geolocation.watchPosition((position) => {
     playerLocation = leaflet.latLng(
@@ -199,4 +211,45 @@ function updatePlayerLocation() {
 
 function generateCellKey(cell: Cell): string {
   return `${cell.i}_${cell.j}`;
+}
+
+//Unload + Load Data
+
+function updateInventoryUI() {
+  statusPanel.innerHTML = `${points} points accumulated`;
+}
+
+function saveDataOnLocal() {
+  const arr = Array.from(caches);
+  const cachesSerialized = JSON.stringify(arr);
+  const coinsSerialized = JSON.stringify(collectedCoins);
+  localStorage.setItem("caches", cachesSerialized);
+  localStorage.setItem("coins", coinsSerialized);
+}
+
+function loadDataFromLocal() {
+  console.log("loading data from local");
+  let storedCaches = localStorage.getItem("caches");
+  let storedCoins = localStorage.getItem("coins");
+  if (storedCaches) {
+    caches = new Map(JSON.parse(storedCaches));
+  }
+
+  if (storedCoins) {
+    collectedCoins = JSON.parse(storedCoins);
+    points = collectedCoins.length;
+    updateInventoryUI();
+  }
+}
+
+function wipeDataFromLocal() {
+  let userInput = prompt("Type RESET if you wish to reset your data");
+
+  if (userInput == "RESET") {
+    localStorage.clear();
+    caches = new Map<string, string>();
+    collectedCoins = [];
+    points = 0;
+    location.reload();
+  }
 }

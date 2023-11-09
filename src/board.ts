@@ -41,7 +41,7 @@ export class Board {
   getCellBounds(cell: Cell): leaflet.LatLngBounds {
     return leaflet
       .latLng([cell.i * this.tileWidth, cell.j * this.tileWidth])
-      .toBounds(2);
+      .toBounds(9);
   }
 
   getCellsNearPoint(point: leaflet.LatLng): Cell[] {
