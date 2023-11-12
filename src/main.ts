@@ -56,10 +56,8 @@ sensorButton.addEventListener("click", () => {
   trackingLocation = !trackingLocation;
   if (trackingLocation) {
       movePlayerToGeolocation();
-    trackingInterval = setInterval(movePlayerToGeolocation, 2000);
   } else if (trackingInterval) {
-    clearInterval(trackingInterval);
-    trackingInterval = null;
+    navigator.geolocation.clearWatch(trackingInterval);
   }
 });
 
@@ -187,7 +185,7 @@ function printCoinArray(coinArray: Coin[]) {
 
 //Player Movement
 function movePlayerToGeolocation(centerMap : boolean = true) {
-  navigator.geolocation.watchPosition((position) => {
+  trackingInterval = navigator.geolocation.watchPosition((position) => {
     playerLocation = leaflet.latLng(
       position.coords.latitude,
       position.coords.longitude
