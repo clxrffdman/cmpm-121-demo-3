@@ -55,8 +55,8 @@ const sensorButton = document.querySelector("#sensor")!;
 sensorButton.addEventListener("click", () => {
   trackingLocation = !trackingLocation;
   if (trackingLocation) {
-    movePlayerToGeolocation();
-    trackingInterval = setInterval(movePlayerToGeolocation, 5000);
+      movePlayerToGeolocation();
+    trackingInterval = setInterval(movePlayerToGeolocation, 2000);
   } else if (trackingInterval) {
     clearInterval(trackingInterval);
     trackingInterval = null;
@@ -120,7 +120,8 @@ function makePit(i: number, j: number) {
   const key = generateCellKey(element);
   const bounds = board.getCellBounds(element);
   const pit = leaflet.rectangle(bounds) as leaflet.Layer;
-
+    
+    
   currentPits.push(pit);
 
   pit.bindPopup(() => {
@@ -185,13 +186,13 @@ function printCoinArray(coinArray: Coin[]) {
 }
 
 //Player Movement
-function movePlayerToGeolocation() {
+function movePlayerToGeolocation(centerMap : boolean = true) {
   navigator.geolocation.watchPosition((position) => {
     playerLocation = leaflet.latLng(
       position.coords.latitude,
       position.coords.longitude
     );
-    updatePlayerLocation();
+    updatePlayerLocation(centerMap);
   });
 }
 
@@ -203,9 +204,11 @@ function movePlayer(lat: number, long: number) {
   updatePlayerLocation();
 }
 
-function updatePlayerLocation() {
+function updatePlayerLocation(centerMap : boolean = true) {
   playerMarker.setLatLng(playerLocation);
-  map.setView(playerMarker.getLatLng());
+    if (centerMap) {
+        map.setView(playerMarker.getLatLng());
+  }
   generatePitsInRange();
 }
 
