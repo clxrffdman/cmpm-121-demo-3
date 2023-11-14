@@ -22,6 +22,7 @@ let caches = new Map<string, string>();
 let currentPits: leaflet.Layer[] = [];
 let collectedCoins: Coin[] = [];
 let playerLocation: leaflet.LatLng;
+let locations: leaflet.LatLng[] = [];
 let trackingLocation = false;
 let trackingInterval: number | null = 0;
 let points = 0;
@@ -55,7 +56,7 @@ const sensorButton = document.querySelector("#sensor")!;
 sensorButton.addEventListener("click", () => {
   trackingLocation = !trackingLocation;
   if (trackingLocation) {
-      movePlayerToGeolocation();
+    movePlayerToGeolocation();
   } else if (trackingInterval) {
     navigator.geolocation.clearWatch(trackingInterval);
   }
@@ -118,8 +119,7 @@ function makePit(i: number, j: number) {
   const key = generateCellKey(element);
   const bounds = board.getCellBounds(element);
   const pit = leaflet.rectangle(bounds) as leaflet.Layer;
-    
-    
+
   currentPits.push(pit);
 
   pit.bindPopup(() => {
@@ -184,7 +184,8 @@ function printCoinArray(coinArray: Coin[]) {
 }
 
 //Player Movement
-function movePlayerToGeolocation(centerMap : boolean = true) {
+function movePlayerToGeolocation(centerMap: boolean = true) {
+  locations = [];
   trackingInterval = navigator.geolocation.watchPosition((position) => {
     playerLocation = leaflet.latLng(
       position.coords.latitude,
@@ -202,16 +203,22 @@ function movePlayer(lat: number, long: number) {
   updatePlayerLocation();
 }
 
-function updatePlayerLocation(centerMap : boolean = true) {
+function updatePlayerLocation(centerMap: boolean = true) {
   playerMarker.setLatLng(playerLocation);
-    if (centerMap) {
-        map.setView(playerMarker.getLatLng());
+  if (centerMap) {
+    map.setView(playerMarker.getLatLng());
   }
+  locations.push(playerLocation);
+  generatePlayerLine();
   generatePitsInRange();
 }
 
 function generateCellKey(cell: Cell): string {
   return `${cell.i}_${cell.j}`;
+}
+
+function generatePlayerLine() {
+  let polyline = leaflet.polyline(locations, { color: "red" }).addTo(map);
 }
 
 //Unload + Load Data
