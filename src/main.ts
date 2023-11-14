@@ -1,6 +1,6 @@
 import "leaflet/dist/leaflet.css";
 import "./style.css";
-import leaflet from "leaflet";
+import leaflet, { Polyline } from "leaflet";
 import luck from "./luck";
 import "./leafletWorkaround";
 import { Board, Cell } from "./board";
@@ -25,6 +25,7 @@ let playerLocation: leaflet.LatLng;
 let locations: leaflet.LatLng[] = [];
 let trackingLocation = false;
 let trackingInterval: number | null = 0;
+let polyline: Polyline;
 let points = 0;
 
 const mapContainer = document.querySelector<HTMLElement>("#map")!;
@@ -186,6 +187,9 @@ function printCoinArray(coinArray: Coin[]) {
 //Player Movement
 function movePlayerToGeolocation(centerMap: boolean = true) {
   locations = [];
+  if (polyline) {
+    polyline.remove();
+  }
   trackingInterval = navigator.geolocation.watchPosition((position) => {
     playerLocation = leaflet.latLng(
       position.coords.latitude,
@@ -218,7 +222,7 @@ function generateCellKey(cell: Cell): string {
 }
 
 function generatePlayerLine() {
-  let polyline = leaflet.polyline(locations, { color: "red" }).addTo(map);
+  polyline = leaflet.polyline(locations, { color: "red" }).addTo(map);
 }
 
 //Unload + Load Data
